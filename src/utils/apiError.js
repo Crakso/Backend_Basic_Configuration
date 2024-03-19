@@ -16,7 +16,7 @@ constructor(
     if(stack){
         this.stack = stack
     }else{
-        Error.captureStackTrace(this,this.constructor)
+        apiError.captureStackTrace(this,this.constructor)
     }
 
 
