@@ -21,8 +21,9 @@ app.use(express.static('public'))
 // For professional bases we should declare the routers here.
 
 import userRegisteration from './routes/users.routes.js'
+import { upload } from './middlewares/multer.middlewares.js';
 
-app.use('/api/v1/users',userRegisteration);
+app.use('/api/v1/users',upload.fields([{name: "avatar", maxCount: 1},{name: "coverImage", maxCount: 1}]),userRegisteration);
 
 
 

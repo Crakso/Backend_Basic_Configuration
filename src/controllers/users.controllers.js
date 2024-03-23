@@ -36,10 +36,10 @@ const RegisterUser = asyncHandler(async (req, res) => {
     }
 
     const avatarfilepath = req.files?.avatar[0]?.path;
-    const coverImagefilepath = req.files?.coverImage[0]?.path;
+    const coverImagefilepath = req.files?.coverImage[0];
+    // console.log(avatarfilepath)
 
-
-    if (!avatarfile) {
+    if (!avatarfilepath) {
         throw new apiError(400, "Avatar File is required!");
     }
 
@@ -49,7 +49,7 @@ const RegisterUser = asyncHandler(async (req, res) => {
         email,
         password,
         fullName,
-        coverImage: coverImagefilepath?.coverImagefilepath || "",
+        coverImage: coverImagefilepath?.path || "",
     })
 
     const createdUser = await UserDB.findById(user._id).select("-password -refreshToken");
