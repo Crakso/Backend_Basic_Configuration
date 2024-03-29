@@ -23,7 +23,7 @@ app.use(express.static('public'))
 import userRegisteration from './routes/users.routes.js'
 import { upload } from './middlewares/multer.middlewares.js';
 
-app.use('/api/v1/users',upload.fields([{name: "avatar", maxCount: 1},{name: "coverImage", maxCount: 1}]),userRegisteration);
+app.use('/api/v1/users',userRegisteration);
 
 
 
