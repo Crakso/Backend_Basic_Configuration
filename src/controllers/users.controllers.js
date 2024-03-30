@@ -2,17 +2,26 @@ import { UserDB } from "../models/users.model.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { apiError } from "../utils/apiError.js"
 import apiResponse from "../utils/apiResponse.js";
+import jwt  from "jsonwebtoken";
 
 
 
 const generateUserTokens = async (userId) => {
     try {
 
-        const user = await UserDB.findOne(userId)
+        const user = await UserDB.findById(userId)
+        // console.log(userId)
+
 
         const userAccessToken = user.generateAccessToken()
 
         const userRefreshToken = user.generateRefreshToken()
+
+        // console.log({userRefreshToken,userAccessToken})
+
+        user.refreshToken = userRefreshToken
+
+        await user.save({ validateBeforeSave: false })
 
         return { userAccessToken, userRefreshToken }
 
@@ -134,9 +143,9 @@ const LogInUser = asyncHandler(async (req, res) => {
         .json(
             new apiResponse(201, "User is Logged In Successfully",
                 {
-                    user:
+                    userDetails:
                         userAccessToken,
-                    userRefreshToken,
+                    refreshToken: userRefreshToken,
                     LoggedInUser
                 })
         )
@@ -167,8 +176,61 @@ const LogOutUser = asyncHandler(async (req, res) => {
         .json(new apiResponse(200, {}, "User Logged Out"))
 })
 
+
+const UserTokenRefreshing = asyncHandler(async (req, res) => {
+
+    // check is accessToken is expired or not if !accesstoken.
+    //get the refresh token from the cookies.
+    //check if refresh token is not present then user not login.
+    // take the id from the refresh token and find the user and check the refresh token is same in both .
+    //if refresh was same then genrete new tokens throw token genration.
+    // update the tokens in cookie and database too.
+
+    const RefreshToken = req.cookies?.refreshToken || req.body?.refreshToken
+
+    if (!RefreshToken) {
+        throw new apiError(401, "Unauthorized Access!")
+    }
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    try {
+        const decoded_jwt = jwt.verify(RefreshToken, process.env.REFRESH_TOKEN_SECRET, options)
+    
+        const userData = await UserDB.findById(decoded_jwt._id)
+    
+        if (userData?.refreshToken !== RefreshToken) {
+            throw new apiError(404, "Refresh Token is expired!")
+        }
+    
+        const { userAccessToken, userRefreshToken } = await generateUserTokens(decoded_jwt._id)
+    
+        res
+            .status(200)
+            .cookie("userDetails", userAccessToken, options)
+            .cookie("refreshToken", userRefreshToken, options)
+            .json(
+                new apiResponse(
+                    200,
+                    "The Token is Refreshed Successfully!",
+                    {
+                        userAccessToken,
+                        refreshToken: userRefreshToken,
+                    }
+                )
+            )
+    } catch (error) {
+        throw new apiError(401,
+            error?.message||"Invalid Refresh Token")
+    }
+})
+
 export {
     RegisterUser,
     LogInUser,
-    LogOutUser
+    LogOutUser,
+    UserTokenRefreshing
 }

@@ -33,4 +33,4 @@ const userAuthentication = asyncHandler(async (req, _, next) => {
     }
 })
 
-export { userAuthentication }
+export { userAuthentication}
