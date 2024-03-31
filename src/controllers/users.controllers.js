@@ -2,7 +2,7 @@ import { UserDB } from "../models/users.model.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { apiError } from "../utils/apiError.js"
 import apiResponse from "../utils/apiResponse.js";
-import jwt  from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 
 
 
@@ -199,15 +199,15 @@ const UserTokenRefreshing = asyncHandler(async (req, res) => {
 
     try {
         const decoded_jwt = jwt.verify(RefreshToken, process.env.REFRESH_TOKEN_SECRET, options)
-    
+
         const userData = await UserDB.findById(decoded_jwt._id)
-    
+
         if (userData?.refreshToken !== RefreshToken) {
             throw new apiError(404, "Refresh Token is expired!")
         }
-    
+
         const { userAccessToken, userRefreshToken } = await generateUserTokens(decoded_jwt._id)
-    
+
         res
             .status(200)
             .cookie("userDetails", userAccessToken, options)
@@ -224,13 +224,123 @@ const UserTokenRefreshing = asyncHandler(async (req, res) => {
             )
     } catch (error) {
         throw new apiError(401,
-            error?.message||"Invalid Refresh Token")
+            error?.message || "Invalid Refresh Token")
     }
+})
+
+
+const ChangeCurrentPassword = asyncHandler(async (req, res) => {
+
+    const { oldPassword, newPassword } = req.body
+
+    const user = await UserDB.findById(req.user._id)
+
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+    if (!isPasswordCorrect) {
+        throw new apiError(400, "The password is incorrect!")
+    }
+
+    user.password = newPassword
+
+    await user.save({
+        validateBeforeSave: false
+    })
+
+    res.status(200).json
+        (
+            new apiResponse(
+                200,
+                "Password is changed successfully."
+            )
+        )
+
+
+})
+
+const GetUserDetails = asyncHandler(async (req, res) => {
+    return res
+        .status(200)
+        .json(
+            new apiResponse(
+                200,
+                "Current user details fetched successfully",
+                req.user)
+        )
+})
+
+const UpdateUserDetails = asyncHandler(async (req, res) => {
+    const { email, fullName, username } = req.body
+
+    if (!email || !fullName || !username) {
+        throw new apiError(404, "Email, Fullname and Username are required for Changes!")
+    }
+
+    const user = await UserDB.findByIdAndUpdate(req.user._id,
+        {
+            $set: {
+                fullName: fullName,
+                email,
+                username
+            }
+        },
+        {
+            new: true
+        }
+    ).select('-password -refreshToken')
+    // user.username = username
+    // user.fullName = fullName
+    // user.email = email
+    // user.save(
+    //     {
+    //         validateBeforeSave: false
+    //     }
+    // )
+
+    res.status(200).json(new apiResponse(200, "Account Details is Updated Successfully.", user))
+})
+
+const UpdateUserAvatar = asyncHandler(async (req, res) => {
+    const Avatar = req.file?.path
+
+    const user = await UserDB.findByIdAndUpdate(req.user._id,
+        {
+            $set: {
+                avatar: Avatar
+            }
+        },
+        {
+            new: true
+        }).select('-password -refreshToken')
+
+    res.status(200).json(new apiResponse(200, "Avatar is Updated Successfully.", user))
+})
+
+const UpdateCoverImage = asyncHandler(async (req, res) => {
+    const coverImage = req.file?.path
+
+    const user = await UserDB.findByIdAndUpdate(req.user._id,
+        {
+            $set: {
+                coverImage
+            }
+        },
+        {
+            new: true
+        }
+    ).select('-password -refreshToken')
+
+    res.status(200).json(new apiResponse(200, "Cover Image is Updated Successfully.", user))
 })
 
 export {
     RegisterUser,
     LogInUser,
     LogOutUser,
-    UserTokenRefreshing
+    UserTokenRefreshing,
+    ChangeCurrentPassword,
+    GetUserDetails,
+    UpdateUserDetails,
+    UpdateUserAvatar,
+    UpdateCoverImage
 }
