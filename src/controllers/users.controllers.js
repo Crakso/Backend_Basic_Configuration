@@ -3,6 +3,8 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { apiError } from "../utils/apiError.js"
 import apiResponse from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
+import { subscriberDB } from "../models/subscriptions.model.js";
+import mongoose from "mongoose";
 
 
 
@@ -176,7 +178,6 @@ const LogOutUser = asyncHandler(async (req, res) => {
         .json(new apiResponse(200, {}, "User Logged Out"))
 })
 
-
 const UserTokenRefreshing = asyncHandler(async (req, res) => {
 
     // check is accessToken is expired or not if !accesstoken.
@@ -227,7 +228,6 @@ const UserTokenRefreshing = asyncHandler(async (req, res) => {
             error?.message || "Invalid Refresh Token")
     }
 })
-
 
 const ChangeCurrentPassword = asyncHandler(async (req, res) => {
 
@@ -333,6 +333,124 @@ const UpdateCoverImage = asyncHandler(async (req, res) => {
     res.status(200).json(new apiResponse(200, "Cover Image is Updated Successfully.", user))
 })
 
+const getUserChannelDetails = asyncHandler(async (req, res) => {
+
+    const username = req.params
+    if (!username) {
+        throw new apiError(400, " username is missing!");
+    }
+
+    const channel = await UserDB.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriberdbs",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriberdbs",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                channelSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                email: 1,
+                subscribersCount: 1,
+                isSubscribed: 1,
+                channelSubscribedToCount: 1,
+                avatar: 1,
+                coverImage: 1,
+            }
+        }
+    ])
+
+    if (!channel?.length) {
+        throw new apiError(404, "Channel does not exist!");
+    }
+
+    return res
+    .status(200)
+    .json(new apiResponse(200,
+        "User Channel Fetched Successfully.",
+        channel[0]
+    ))
+})
+
+const getUserWatchHistory = asyncHandler(async(req,res)=>{
+    const user = await UserDB.aggregate([
+        {
+            $match:{
+                _id: mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $lookup:{
+                from: "videosdbs",
+                localField: "watchHistory",
+                foreignField:"_id",
+                as: "WatchHistory",
+                pipeline: [
+                    {
+                        $lookup:{
+                            from:"userdbs",
+                            localField:"owner",
+                            foreignField:"_id",
+                            as:"owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields : {
+                owner:{
+                    $first: "$owner"
+                }
+            }
+        }
+    ])
+})
+
+
 export {
     RegisterUser,
     LogInUser,
@@ -342,5 +460,7 @@ export {
     GetUserDetails,
     UpdateUserDetails,
     UpdateUserAvatar,
-    UpdateCoverImage
+    UpdateCoverImage,
+    getUserChannelDetails,
+    getUserWatchHistory
 }
