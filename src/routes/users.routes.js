@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { 
     ChangeCurrentPassword,
+    DeleteUserAccount,
     GetUserDetails,
     LogInUser,
     LogOutUser,
@@ -53,6 +54,11 @@ router.route('/user').get(
 router.route('/update-account').patch(
     userAuthentication,
     UpdateUserDetails
+)
+
+router.route('/account/delete').delete(
+    userAuthentication,
+    DeleteUserAccount
 )
 
 router.route('/avatar').patch(

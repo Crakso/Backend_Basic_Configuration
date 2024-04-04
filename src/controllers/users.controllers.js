@@ -300,6 +300,38 @@ const UpdateUserDetails = asyncHandler(async (req, res) => {
     res.status(200).json(new apiResponse(200, "Account Details is Updated Successfully.", user))
 })
 
+const DeleteUserAccount = asyncHandler(async (req, res) => {
+
+    const { password } = req.body
+
+    if (!password) {
+        throw new apiError(404, "password is required!")
+    }
+
+    const user = await UserDB.findById(req.user._id)
+
+    const isPasswordCorrect = await user.isPasswordCorrect(password)
+
+    if (!isPasswordCorrect) {
+        throw new apiError(400, "password is incorrect!")
+    }
+
+    await user.deleteOne()
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    res
+        .clearCookie('userDetails', options)
+        .clearCookie('refreshToken', options)
+        .status(200)
+        .json(
+            new apiResponse(200, "The Account has been Deleted Successfully.")
+        )
+})
+
 const UpdateUserAvatar = asyncHandler(async (req, res) => {
     const Avatar = req.file?.path
 
@@ -399,33 +431,33 @@ const getUserChannelDetails = asyncHandler(async (req, res) => {
     }
 
     return res
-    .status(200)
-    .json(new apiResponse(200,
-        "User Channel Fetched Successfully.",
-        channel[0]
-    ))
+        .status(200)
+        .json(new apiResponse(200,
+            "User Channel Fetched Successfully.",
+            channel[0]
+        ))
 })
 
-const getUserWatchHistory = asyncHandler(async(req,res)=>{
+const getUserWatchHistory = asyncHandler(async (req, res) => {
     const user = await UserDB.aggregate([
         {
-            $match:{
+            $match: {
                 _id: mongoose.Types.ObjectId(req.user._id)
             }
         },
         {
-            $lookup:{
+            $lookup: {
                 from: "videosdbs",
                 localField: "watchHistory",
-                foreignField:"_id",
+                foreignField: "_id",
                 as: "WatchHistory",
                 pipeline: [
                     {
-                        $lookup:{
-                            from:"userdbs",
-                            localField:"owner",
-                            foreignField:"_id",
-                            as:"owner",
+                        $lookup: {
+                            from: "userdbs",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
                             pipeline: [
                                 {
                                     $project: {
@@ -441,8 +473,8 @@ const getUserWatchHistory = asyncHandler(async(req,res)=>{
             }
         },
         {
-            $addFields : {
-                owner:{
+            $addFields: {
+                owner: {
                     $first: "$owner"
                 }
             }
@@ -459,6 +491,7 @@ export {
     ChangeCurrentPassword,
     GetUserDetails,
     UpdateUserDetails,
+    DeleteUserAccount,
     UpdateUserAvatar,
     UpdateCoverImage,
     getUserChannelDetails,
