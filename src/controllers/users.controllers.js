@@ -159,8 +159,8 @@ const LogOutUser = asyncHandler(async (req, res) => {
     // console.log(req.user)
     await UserDB.findByIdAndUpdate(req.user._id,
         {
-            $set: {
-                refreshToken: undefined
+            $unset: {
+                refreshToken: 1       // It removes the field from the document.
             }
         },
         {
@@ -367,11 +367,11 @@ const UpdateCoverImage = asyncHandler(async (req, res) => {
 
 const getUserChannelDetails = asyncHandler(async (req, res) => {
 
-    const username = req.params
+    const {username} = req.params
     if (!username) {
         throw new apiError(400, " username is missing!");
     }
-
+    // console.log(req.params);
     const channel = await UserDB.aggregate([
         {
             $match: {
