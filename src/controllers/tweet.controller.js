@@ -98,7 +98,7 @@ const updateTweet = asyncHandler(async (req, res) => {
     if (!tweetId) {
         throw new apiError(400, "Tweet Id is missing!")
     }
-    if (!newContent) {
+    if (newContent?.trim()==='') {
         throw new apiError(404, "The new Content is empty!")
     }
     const updateTweet = await TweetDB.findByIdAndUpdate(
